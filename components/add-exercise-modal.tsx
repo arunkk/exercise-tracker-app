@@ -1,9 +1,17 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { X, Camera, Loader2 } from 'lucide-react'
+import { Camera } from '@phosphor-icons/react'
+import { Loader2 } from 'lucide-react'
 import type { MuscleGroup, Exercise } from '@/lib/types'
 import { createExercise } from '@/lib/actions'
+import { toast } from 'sonner'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 
 interface AddExerciseModalProps {
   isOpen: boolean
@@ -15,82 +23,136 @@ const MUSCLE_GROUPS: MuscleGroup[] = ['Chest', 'Back', 'Legs', 'Arms', 'Shoulder
 
 export function AddExerciseModal({ isOpen, onClose, onExerciseCreated }: AddExerciseModalProps) {
   const [name, setName] = useState('')
-  const [muscleGroup, setMuscleGroup] = useState<MuscleGroup>('Chest')
+  const [muscleGroup, setMuscleGroup] = useState<MuscleGroup | null>(null)
   const [isMachine, setIsMachine] = useState(false)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errors, setErrors] = useState<{ name?: boolean; muscleGroup?: boolean }>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
-  
+
   const handleImageCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
       setImageFile(file)
       const reader = new FileReader()
-      reader.onload = (e) => {
-        setImagePreview(e.target?.result as string)
-      }
+      reader.onload = (ev) => setImagePreview(ev.target?.result as string)
       reader.readAsDataURL(file)
     }
   }
-  
+
   const handleSubmit = async () => {
-    if (!name.trim()) return
-    
+    const newErrors: { name?: boolean; muscleGroup?: boolean } = {}
+    if (!name.trim()) newErrors.name = true
+    if (!muscleGroup) newErrors.muscleGroup = true
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
+      return
+    }
+
     setIsSubmitting(true)
     try {
       let imagePathname: string | null = null
-      
       if (imageFile) {
         const formData = new FormData()
         formData.append('file', imageFile)
-        
-        const uploadRes = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        })
-        
+        const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData })
         if (uploadRes.ok) {
           const { pathname } = await uploadRes.json()
           imagePathname = pathname
         }
       }
-      
-      const exercise = await createExercise(name.trim(), muscleGroup, imagePathname, isMachine)
+
+      const exercise = await createExercise(name.trim(), muscleGroup!, imagePathname, isMachine)
       onExerciseCreated(exercise)
-      
-      // Reset form
+      toast.success(`${exercise.name} added`)
+
+      // Reset
       setName('')
-      setMuscleGroup('Chest')
+      setMuscleGroup(null)
       setIsMachine(false)
       setImagePreview(null)
       setImageFile(null)
+      setErrors({})
       onClose()
-    } catch (error) {
-      console.error('Failed to create exercise:', error)
+    } catch {
+      toast.error('Failed to create exercise')
     } finally {
       setIsSubmitting(false)
     }
   }
-  
-  if (!isOpen) return null
-  
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={onClose} />
-      
-      <div className="relative bg-card w-full max-w-md rounded-t-2xl sm:rounded-2xl border border-border max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-card border-b border-border p-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold">Add Custom Exercise</h2>
-          <button onClick={onClose} className="p-2 hover:bg-muted rounded-full transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        
-        <div className="p-4 space-y-4">
-          {/* Photo Capture */}
+    <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>New Exercise</SheetTitle>
+        </SheetHeader>
+
+        <div className="space-y-5 pt-4 pb-6">
+          {/* Name */}
           <div>
-            <label className="text-sm font-medium text-muted-foreground mb-2 block">Photo (optional)</label>
+            <label className="text-sm font-medium mb-1.5 block">Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => { setName(e.target.value); setErrors((p) => ({ ...p, name: false })) }}
+              placeholder="e.g., Incline Dumbbell Press"
+              className={`w-full px-4 py-3 bg-secondary rounded-lg text-sm border focus:ring-2 focus:ring-primary focus:outline-none ${
+                errors.name ? 'border-destructive' : 'border-border'
+              }`}
+            />
+            {errors.name && <p className="text-xs text-destructive mt-1">Name required</p>}
+          </div>
+
+          {/* Muscle Group */}
+          <div>
+            <label className="text-sm font-medium mb-1.5 block">Muscle Group</label>
+            <div className="grid grid-cols-3 gap-2">
+              {MUSCLE_GROUPS.map((group) => (
+                <button
+                  key={group}
+                  onClick={() => { setMuscleGroup(group); setErrors((p) => ({ ...p, muscleGroup: false })) }}
+                  className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    muscleGroup === group
+                      ? 'bg-foreground text-background'
+                      : `bg-secondary text-secondary-foreground border ${errors.muscleGroup ? 'border-destructive' : 'border-border'}`
+                  }`}
+                >
+                  {group}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Equipment */}
+          <div>
+            <label className="text-sm font-medium mb-1.5 block">Equipment</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setIsMachine(false)}
+                aria-pressed={!isMachine}
+                className={`py-2.5 px-3 rounded-lg text-sm font-medium transition-colors ${
+                  !isMachine ? 'bg-foreground text-background' : 'bg-secondary text-secondary-foreground border border-border'
+                }`}
+              >
+                Free weight
+              </button>
+              <button
+                onClick={() => setIsMachine(true)}
+                aria-pressed={isMachine}
+                className={`py-2.5 px-3 rounded-lg text-sm font-medium transition-colors ${
+                  isMachine ? 'bg-foreground text-background' : 'bg-secondary text-secondary-foreground border border-border'
+                }`}
+              >
+                Machine
+              </button>
+            </div>
+          </div>
+
+          {/* Photo */}
+          <div>
+            <label className="text-sm font-medium mb-1.5 block">Photo <span className="text-muted-foreground font-normal">(optional)</span></label>
             <input
               ref={fileInputRef}
               type="file"
@@ -99,97 +161,41 @@ export function AddExerciseModal({ isOpen, onClose, onExerciseCreated }: AddExer
               onChange={handleImageCapture}
               className="hidden"
             />
-            
             {imagePreview ? (
-              <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-muted">
+              <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-secondary">
                 <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                 <button
-                  onClick={() => {
-                    setImagePreview(null)
-                    setImageFile(null)
-                  }}
-                  className="absolute top-2 right-2 p-2 bg-background/80 rounded-full"
+                  onClick={() => { setImagePreview(null); setImageFile(null) }}
+                  className="absolute top-2 right-2 p-1.5 bg-background/80 rounded-full text-xs font-medium"
                 >
-                  <X className="w-4 h-4" />
+                  Remove
                 </button>
               </div>
             ) : (
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full aspect-video rounded-xl border-2 border-dashed border-border flex flex-col items-center justify-center gap-2 hover:bg-muted/50 transition-colors"
+                className="w-full py-8 rounded-lg border border-dashed border-border flex flex-col items-center gap-1.5 hover:bg-secondary/50 transition-colors"
               >
-                <Camera className="w-8 h-8 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Tap to take photo</span>
+                <Camera size={24} className="text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Take photo</span>
               </button>
             )}
           </div>
-          
-          {/* Exercise Name */}
-          <div>
-            <label className="text-sm font-medium text-muted-foreground mb-2 block">Exercise Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Incline Dumbbell Press"
-              className="w-full px-4 py-3 bg-input rounded-xl text-foreground border-0 focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          
-          {/* Muscle Group */}
-          <div>
-            <label className="text-sm font-medium text-muted-foreground mb-2 block">Muscle Group</label>
-            <div className="grid grid-cols-3 gap-2">
-              {MUSCLE_GROUPS.map((group) => (
-                <button
-                  key={group}
-                  onClick={() => setMuscleGroup(group)}
-                  className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                    muscleGroup === group
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                  }`}
-                >
-                  {group}
-                </button>
-              ))}
-            </div>
-          </div>
-          
-          {/* Machine Toggle */}
-          <div className="flex items-center justify-between p-3 bg-muted rounded-xl">
-            <span className="font-medium">Machine Exercise</span>
-            <button
-              onClick={() => setIsMachine(!isMachine)}
-              className={`w-12 h-7 rounded-full transition-colors relative ${
-                isMachine ? 'bg-primary' : 'bg-border'
-              }`}
-            >
-              <span
-                className={`absolute top-1 w-5 h-5 rounded-full bg-foreground transition-transform ${
-                  isMachine ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
-          </div>
-          
-          {/* Submit Button */}
+
+          {/* Submit */}
           <button
             onClick={handleSubmit}
-            disabled={!name.trim() || isSubmitting}
-            className="w-full py-4 bg-primary text-primary-foreground font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            disabled={isSubmitting}
+            className="w-full py-3.5 bg-foreground text-background font-semibold rounded-lg disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
           >
             {isSubmitting ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Creating...
-              </>
+              <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</>
             ) : (
-              'Add Exercise'
+              'Create Exercise'
             )}
           </button>
         </div>
-      </div>
-    </div>
+      </SheetContent>
+    </Sheet>
   )
 }
