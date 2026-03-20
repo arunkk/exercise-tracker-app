@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import type { Exercise, WorkoutLog, SetInput, MuscleGroup } from './types'
+import type { Exercise, WorkoutLog, SetInput, MuscleGroup, Rep } from './types'
 
 export async function getExercises(): Promise<Exercise[]> {
   const supabase = await createClient()
@@ -16,7 +16,10 @@ export async function getExercises(): Promise<Exercise[]> {
   return data || []
 }
 
-export async function getWorkoutLogs(limit = 50): Promise<WorkoutLog[]> {
+export async function getWorkoutLogs(
+  limit = 20,
+  offset = 0
+): Promise<{ data: WorkoutLog[]; hasMore: boolean }> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('workout_logs')
@@ -27,49 +30,14 @@ export async function getWorkoutLogs(limit = 50): Promise<WorkoutLog[]> {
     `)
     .order('workout_date', { ascending: false })
     .order('created_at', { ascending: false })
-    .limit(limit)
-  
-  if (error) throw error
-  return data || []
-}
+    .range(offset, offset + limit)
 
-export async function createWorkoutLog(
-  exerciseId: string,
-  workoutDate: string,
-  sets: SetInput[],
-  notes?: string
-): Promise<WorkoutLog> {
-  const supabase = await createClient()
-  
-  // Create the workout log
-  const { data: log, error: logError } = await supabase
-    .from('workout_logs')
-    .insert({
-      exercise_id: exerciseId,
-      workout_date: workoutDate,
-      notes: notes || null
-    })
-    .select()
-    .single()
-  
-  if (logError) throw logError
-  
-  // Create the reps
-  const repsToInsert = sets.map((set, index) => ({
-    workout_log_id: log.id,
-    weight_lbs: set.weight_lbs,
-    reps_count: set.reps_count,
-    set_number: index + 1
-  }))
-  
-  const { error: repsError } = await supabase
-    .from('reps')
-    .insert(repsToInsert)
-  
-  if (repsError) throw repsError
-  
-  revalidatePath('/')
-  return log
+  if (error) throw error
+
+  return {
+    data: data || [],
+    hasMore: (data?.length || 0) > limit,
+  }
 }
 
 export async function createExercise(
@@ -100,15 +68,142 @@ export async function createExercise(
 
 export async function deleteWorkoutLog(logId: string): Promise<void> {
   const supabase = await createClient()
-  
+
   const { error } = await supabase
     .from('workout_logs')
     .delete()
     .eq('id', logId)
-  
+
   if (error) throw error
-  
+
   revalidatePath('/')
+}
+
+export async function logSet(
+  exerciseId: string,
+  weightLbs: number,
+  repsCount: number
+): Promise<{ rep: Rep; setCount: number }> {
+  const supabase = await createClient()
+  const today = new Date().toISOString().split('T')[0]
+
+  // Find or create today's workout log for this exercise
+  let { data: log } = await supabase
+    .from('workout_logs')
+    .select('id')
+    .eq('exercise_id', exerciseId)
+    .eq('workout_date', today)
+    .single()
+
+  if (!log) {
+    const { data: newLog, error: logError } = await supabase
+      .from('workout_logs')
+      .insert({ exercise_id: exerciseId, workout_date: today })
+      .select('id')
+      .single()
+    if (logError) throw logError
+    log = newLog
+  }
+
+  // Get next set number
+  const { count } = await supabase
+    .from('reps')
+    .select('*', { count: 'exact', head: true })
+    .eq('workout_log_id', log!.id)
+
+  const setNumber = (count || 0) + 1
+
+  // Insert the rep
+  const { data: rep, error: repError } = await supabase
+    .from('reps')
+    .insert({
+      workout_log_id: log!.id,
+      weight_lbs: weightLbs,
+      rep_count: repsCount,
+      set_number: setNumber,
+    })
+    .select()
+    .single()
+
+  if (repError) throw repError
+
+  revalidatePath('/')
+  return { rep, setCount: setNumber }
+}
+
+export async function deleteSet(repId: string): Promise<void> {
+  const supabase = await createClient()
+
+  const { data: rep } = await supabase
+    .from('reps')
+    .select('workout_log_id')
+    .eq('id', repId)
+    .single()
+
+  if (!rep) throw new Error('Set not found')
+
+  const { error } = await supabase.from('reps').delete().eq('id', repId)
+  if (error) throw error
+
+  const { count } = await supabase
+    .from('reps')
+    .select('*', { count: 'exact', head: true })
+    .eq('workout_log_id', rep.workout_log_id)
+
+  if (count === 0) {
+    await supabase.from('workout_logs').delete().eq('id', rep.workout_log_id)
+  }
+
+  revalidatePath('/')
+}
+
+export async function getTodaySets(exerciseId: string): Promise<Rep[]> {
+  const supabase = await createClient()
+  const today = new Date().toISOString().split('T')[0]
+
+  const { data: log } = await supabase
+    .from('workout_logs')
+    .select('id')
+    .eq('exercise_id', exerciseId)
+    .eq('workout_date', today)
+    .single()
+
+  if (!log) return []
+
+  const { data: reps, error } = await supabase
+    .from('reps')
+    .select('*')
+    .eq('workout_log_id', log.id)
+    .order('set_number')
+
+  if (error) throw error
+  return reps || []
+}
+
+export async function getLastSessionSets(exerciseId: string): Promise<Rep[]> {
+  const supabase = await createClient()
+  const today = new Date().toISOString().split('T')[0]
+
+  const { data: log } = await supabase
+    .from('workout_logs')
+    .select('id')
+    .eq('exercise_id', exerciseId)
+    .lt('workout_date', today)
+    .order('workout_date', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (!log) return []
+
+  const { data: reps, error } = await supabase
+    .from('reps')
+    .select('*')
+    .eq('workout_log_id', log.id)
+    .order('set_number')
+    .limit(5)
+
+  if (error) throw error
+  return reps || []
 }
 
 export interface PatternAnalysis {
