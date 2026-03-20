@@ -82,23 +82,25 @@ export async function deleteWorkoutLog(logId: string): Promise<void> {
 export async function logSet(
   exerciseId: string,
   weightLbs: number,
-  repsCount: number
+  repsCount: number,
+  workoutDate?: string
 ): Promise<{ rep: Rep; setCount: number }> {
   const supabase = await createClient()
-  const today = new Date().toISOString().split('T')[0]
+  const day =
+    workoutDate?.trim() || new Date().toISOString().split('T')[0]
 
-  // Find or create today's workout log for this exercise
+  // Find or create workout log for this exercise on the chosen date
   let { data: log } = await supabase
     .from('workout_logs')
     .select('id')
     .eq('exercise_id', exerciseId)
-    .eq('workout_date', today)
-    .single()
+    .eq('workout_date', day)
+    .maybeSingle()
 
   if (!log) {
     const { data: newLog, error: logError } = await supabase
       .from('workout_logs')
-      .insert({ exercise_id: exerciseId, workout_date: today })
+      .insert({ exercise_id: exerciseId, workout_date: day })
       .select('id')
       .single()
     if (logError) throw logError
@@ -157,16 +159,19 @@ export async function deleteSet(repId: string): Promise<void> {
   revalidatePath('/')
 }
 
-export async function getTodaySets(exerciseId: string): Promise<Rep[]> {
+/** Sets logged for this exercise on a specific calendar date (YYYY-MM-DD). */
+export async function getSetsForExerciseOnDate(
+  exerciseId: string,
+  date: string
+): Promise<Rep[]> {
   const supabase = await createClient()
-  const today = new Date().toISOString().split('T')[0]
 
   const { data: log } = await supabase
     .from('workout_logs')
     .select('id')
     .eq('exercise_id', exerciseId)
-    .eq('workout_date', today)
-    .single()
+    .eq('workout_date', date)
+    .maybeSingle()
 
   if (!log) return []
 
@@ -180,18 +185,23 @@ export async function getTodaySets(exerciseId: string): Promise<Rep[]> {
   return reps || []
 }
 
-export async function getLastSessionSets(exerciseId: string): Promise<Rep[]> {
+/**
+ * Most recent session for this exercise strictly before `beforeDate` (YYYY-MM-DD).
+ */
+export async function getPreviousSessionSets(
+  exerciseId: string,
+  beforeDate: string
+): Promise<Rep[]> {
   const supabase = await createClient()
-  const today = new Date().toISOString().split('T')[0]
 
   const { data: log } = await supabase
     .from('workout_logs')
     .select('id')
     .eq('exercise_id', exerciseId)
-    .lt('workout_date', today)
+    .lt('workout_date', beforeDate)
     .order('workout_date', { ascending: false })
     .limit(1)
-    .single()
+    .maybeSingle()
 
   if (!log) return []
 

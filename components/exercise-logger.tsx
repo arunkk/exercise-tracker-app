@@ -1,26 +1,88 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { MagnifyingGlass } from '@phosphor-icons/react'
 import type { Exercise, MuscleGroup } from '@/lib/types'
 import { ExerciseCard } from './exercise-card'
 import { AddExerciseModal } from './add-exercise-modal'
 
+const LAST_EXERCISE_KEY = 'reptrack:lastExerciseId'
+
 interface ExerciseLoggerProps {
   exercises: Exercise[]
   suggestedMuscleGroups: MuscleGroup[]
   onSetLogged: () => void
+  /** When set (e.g. from rotation banner), apply once then clear via callback. */
+  filterFromSuggestion: MuscleGroup | null
+  onSuggestionFilterApplied: () => void
 }
 
 const MUSCLE_GROUPS: (MuscleGroup | 'all')[] = ['all', 'Chest', 'Back', 'Legs', 'Arms', 'Shoulders', 'Core']
 
-export function ExerciseLogger({ exercises, suggestedMuscleGroups, onSetLogged }: ExerciseLoggerProps) {
+export function ExerciseLogger({
+  exercises,
+  suggestedMuscleGroups,
+  onSetLogged,
+  filterFromSuggestion,
+  onSuggestionFilterApplied,
+}: ExerciseLoggerProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearch, setShowSearch] = useState(false)
   const [filterMuscle, setFilterMuscle] = useState<MuscleGroup | 'all'>('all')
   const [showAddModal, setShowAddModal] = useState(false)
   const [allExercises, setAllExercises] = useState(exercises)
+  const prefsRestoredRef = useRef(false)
+
+  useEffect(() => {
+    setAllExercises(exercises)
+  }, [exercises])
+
+  // One-time: restore last exercise + muscle section unless a suggestion filter is pending.
+  useEffect(() => {
+    if (allExercises.length === 0 || prefsRestoredRef.current) return
+
+    if (filterFromSuggestion) {
+      prefsRestoredRef.current = true
+      return
+    }
+
+    prefsRestoredRef.current = true
+    try {
+      const saved = localStorage.getItem(LAST_EXERCISE_KEY)
+      if (!saved) return
+      const ex = allExercises.find((e) => e.id === saved)
+      if (ex) {
+        setFilterMuscle(ex.muscle_group)
+        setExpandedId(saved)
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, [allExercises, filterFromSuggestion])
+
+  // Apply rotation / banner muscle filter whenever it is set.
+  useEffect(() => {
+    if (!filterFromSuggestion) return
+    setFilterMuscle(filterFromSuggestion)
+    onSuggestionFilterApplied()
+  }, [filterFromSuggestion, onSuggestionFilterApplied])
+
+  const persistLastExercise = (id: string) => {
+    try {
+      localStorage.setItem(LAST_EXERCISE_KEY, id)
+    } catch {
+      // ignore
+    }
+  }
+
+  const handleToggleExercise = (exerciseId: string) => {
+    setExpandedId((prev) => {
+      const next = prev === exerciseId ? null : exerciseId
+      if (next) persistLastExercise(next)
+      return next
+    })
+  }
 
   const filteredExercises = useMemo(() => {
     return allExercises.filter((ex) => {
@@ -110,7 +172,7 @@ export function ExerciseLogger({ exercises, suggestedMuscleGroups, onSetLogged }
                   key={exercise.id}
                   exercise={exercise}
                   isExpanded={expandedId === exercise.id}
-                  onToggle={() => setExpandedId(expandedId === exercise.id ? null : exercise.id)}
+                  onToggle={() => handleToggleExercise(exercise.id)}
                   onSetLogged={onSetLogged}
                 />
               ))}

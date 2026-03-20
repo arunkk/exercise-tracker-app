@@ -67,6 +67,10 @@ export function HomePage() {
     setTab('log')
   }
 
+  const clearSuggestionFilter = useCallback(() => {
+    setFilterFromSuggestion(null)
+  }, [])
+
   // Today's stats
   const today = new Date().toISOString().split('T')[0]
   const todaysLogs = workoutLogs.filter((log) => log.workout_date === today)
@@ -143,6 +147,8 @@ export function HomePage() {
             exercises={exercises}
             suggestedMuscleGroups={suggestedMuscleGroups}
             onSetLogged={handleSetLogged}
+            filterFromSuggestion={filterFromSuggestion}
+            onSuggestionFilterApplied={clearSuggestionFilter}
           />
         ) : (
           <div
