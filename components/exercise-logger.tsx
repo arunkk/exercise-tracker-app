@@ -10,22 +10,12 @@ const LAST_EXERCISE_KEY = 'reptrack:lastExerciseId'
 
 interface ExerciseLoggerProps {
   exercises: Exercise[]
-  suggestedMuscleGroups: MuscleGroup[]
   onSetLogged: () => void
-  /** When set (e.g. from rotation banner), apply once then clear via callback. */
-  filterFromSuggestion: MuscleGroup | null
-  onSuggestionFilterApplied: () => void
 }
 
 const MUSCLE_GROUPS: (MuscleGroup | 'all')[] = ['all', 'Chest', 'Back', 'Legs', 'Arms', 'Shoulders', 'Core']
 
-export function ExerciseLogger({
-  exercises,
-  suggestedMuscleGroups,
-  onSetLogged,
-  filterFromSuggestion,
-  onSuggestionFilterApplied,
-}: ExerciseLoggerProps) {
+export function ExerciseLogger({ exercises, onSetLogged }: ExerciseLoggerProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearch, setShowSearch] = useState(false)
@@ -38,15 +28,9 @@ export function ExerciseLogger({
     setAllExercises(exercises)
   }, [exercises])
 
-  // One-time: restore last exercise + muscle section unless a suggestion filter is pending.
+  // One-time: restore last exercise + muscle section from localStorage.
   useEffect(() => {
     if (allExercises.length === 0 || prefsRestoredRef.current) return
-
-    if (filterFromSuggestion) {
-      prefsRestoredRef.current = true
-      return
-    }
-
     prefsRestoredRef.current = true
     try {
       const saved = localStorage.getItem(LAST_EXERCISE_KEY)
@@ -59,14 +43,7 @@ export function ExerciseLogger({
     } catch {
       // ignore storage errors
     }
-  }, [allExercises, filterFromSuggestion])
-
-  // Apply rotation / banner muscle filter whenever it is set.
-  useEffect(() => {
-    if (!filterFromSuggestion) return
-    setFilterMuscle(filterFromSuggestion)
-    onSuggestionFilterApplied()
-  }, [filterFromSuggestion, onSuggestionFilterApplied])
+  }, [allExercises])
 
   const persistLastExercise = (id: string) => {
     try {
@@ -94,20 +71,15 @@ export function ExerciseLogger({
 
   const groupedExercises = useMemo(() => {
     const groups: Record<string, Exercise[]> = {}
-    const sorted = [...filteredExercises].sort((a, b) => {
-      const aIdx = suggestedMuscleGroups.indexOf(a.muscle_group)
-      const bIdx = suggestedMuscleGroups.indexOf(b.muscle_group)
-      if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx
-      if (aIdx !== -1) return -1
-      if (bIdx !== -1) return 1
-      return a.muscle_group.localeCompare(b.muscle_group)
-    })
+    const sorted = [...filteredExercises].sort((a, b) =>
+      a.muscle_group.localeCompare(b.muscle_group)
+    )
     for (const ex of sorted) {
       if (!groups[ex.muscle_group]) groups[ex.muscle_group] = []
       groups[ex.muscle_group].push(ex)
     }
     return groups
-  }, [filteredExercises, suggestedMuscleGroups])
+  }, [filteredExercises])
 
   const handleExerciseCreated = (exercise: Exercise) => {
     setAllExercises((prev) => [...prev, exercise])
@@ -145,9 +117,6 @@ export function ExerciseLogger({
               }`}
             >
               {muscle === 'all' ? 'All' : muscle}
-              {muscle !== 'all' && suggestedMuscleGroups[0] === muscle && (
-                <span className="inline-block w-1.5 h-1.5 bg-primary rounded-full ml-1.5 align-middle" />
-              )}
             </button>
           ))}
           <button

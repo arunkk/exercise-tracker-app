@@ -43,4 +43,3 @@ BLOB_READ_WRITE_TOKEN=   # for @vercel/blob
 - `typescript: { ignoreBuildErrors: true }` and `images: { unoptimized: true }` in `next.config.mjs`
 - Tailwind CSS v4 via `@tailwindcss/postcss` (no `tailwind.config.js` — config is in CSS)
 - Dark mode by default; mobile-first with iOS PWA metadata (`apple-web-app-capable`)
-- `analyzeWorkoutPattern()` in actions.ts implements a cycle-detection algorithm over last 30 logs
