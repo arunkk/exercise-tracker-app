@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Barbell, GearSix, CaretRight } from '@phosphor-icons/react'
+import { Barbell, GearSix, CaretRight, Heart } from '@phosphor-icons/react'
 import type { Exercise, Rep } from '@/lib/types'
 import {
   logSet,
@@ -18,14 +18,22 @@ interface ExerciseCardProps {
   isExpanded: boolean
   onToggle: () => void
   onSetLogged: () => void
+  isFavorite: boolean
+  onToggleFavorite: () => void
 }
 
 function repCount(r: Rep): number {
-  if (typeof r.reps_count === 'number') return r.reps_count
-  return (r as unknown as { rep_count?: number }).rep_count ?? 0
+  return r.rep_count
 }
 
-export function ExerciseCard({ exercise, isExpanded, onToggle, onSetLogged }: ExerciseCardProps) {
+export function ExerciseCard({
+  exercise,
+  isExpanded,
+  onToggle,
+  onSetLogged,
+  isFavorite,
+  onToggleFavorite,
+}: ExerciseCardProps) {
   const [workoutDate, setWorkoutDate] = useState(localDateISOString)
   const [todaySets, setTodaySets] = useState<Rep[]>([])
   const [previousSets, setPreviousSets] = useState<Rep[]>([])
@@ -80,47 +88,66 @@ export function ExerciseCard({ exercise, isExpanded, onToggle, onSetLogged }: Ex
 
   return (
     <div ref={cardRef} className="bg-card border border-border rounded-xl overflow-hidden">
-      {/* Collapsed header — always visible */}
-      <button
-        onClick={onToggle}
-        className="flex items-center gap-3 p-3 w-full text-left"
-      >
-        <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-secondary flex items-center justify-center">
-          {exercise.image_url ? (
-            <img
-              src={`/api/file?pathname=${encodeURIComponent(exercise.image_url)}`}
-              alt={exercise.name}
-              className="w-full h-full object-cover rounded-lg"
+      {/* Collapsed header — row + favorite (favorite does not expand) */}
+      <div className="flex items-stretch">
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex flex-1 min-w-0 items-center gap-3 p-3 text-left"
+        >
+          <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-secondary flex items-center justify-center">
+            {exercise.image_url ? (
+              <img
+                src={`/api/file?pathname=${encodeURIComponent(exercise.image_url)}`}
+                alt={exercise.name}
+                className="w-full h-full object-cover rounded-lg"
+              />
+            ) : (
+              <Icon size={20} className="text-muted-foreground" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm truncate">{exercise.name}</p>
+            <p className="text-xs text-muted-foreground">
+              {exercise.muscle_group} {exercise.is_machine ? '· Machine' : '· Free weight'}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {todaySets.length > 0 && workoutDate === maxDate && (
+              <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                {todaySets.length} {todaySets.length === 1 ? 'set' : 'sets'}
+              </span>
+            )}
+            {todaySets.length > 0 && workoutDate !== maxDate && (
+              <span className="text-xs font-medium text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+                {todaySets.length} on {workoutDate}
+              </span>
+            )}
+            <CaretRight
+              size={16}
+              className={`text-muted-foreground transition-transform duration-200 ${
+                isExpanded ? 'rotate-90' : ''
+              }`}
             />
-          ) : (
-            <Icon size={20} className="text-muted-foreground" />
-          )}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm truncate">{exercise.name}</p>
-          <p className="text-xs text-muted-foreground">
-            {exercise.muscle_group} {exercise.is_machine ? '· Machine' : '· Free weight'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {todaySets.length > 0 && workoutDate === maxDate && (
-            <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-              {todaySets.length} {todaySets.length === 1 ? 'set' : 'sets'}
-            </span>
-          )}
-          {todaySets.length > 0 && workoutDate !== maxDate && (
-            <span className="text-xs font-medium text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-              {todaySets.length} on {workoutDate}
-            </span>
-          )}
-          <CaretRight
-            size={16}
-            className={`text-muted-foreground transition-transform duration-200 ${
-              isExpanded ? 'rotate-90' : ''
-            }`}
+          </div>
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onToggleFavorite()
+          }}
+          className="flex-shrink-0 px-3 flex items-center justify-center border-l border-border hover:bg-secondary/80 transition-colors"
+          aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+          aria-pressed={isFavorite}
+        >
+          <Heart
+            size={22}
+            weight={isFavorite ? 'fill' : 'regular'}
+            className={isFavorite ? 'text-rose-500' : 'text-muted-foreground'}
           />
-        </div>
-      </button>
+        </button>
+      </div>
 
       {/* Expanded content */}
       {isExpanded && (

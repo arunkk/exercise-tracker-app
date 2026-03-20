@@ -38,7 +38,7 @@ export function WorkoutLogItem({ log, onDelete }: WorkoutLogItemProps) {
     }
   }
 
-  const totalWeight = log.reps?.reduce((sum, rep) => sum + rep.weight_lbs * rep.reps_count, 0) || 0
+  const totalWeight = log.reps?.reduce((sum, rep) => sum + rep.weight_lbs * rep.rep_count, 0) || 0
   const Icon = log.exercise?.is_machine ? GearSix : Barbell
 
   return (
@@ -63,7 +63,7 @@ export function WorkoutLogItem({ log, onDelete }: WorkoutLogItemProps) {
           <p className="text-xs text-muted-foreground mt-1.5">
             {log.reps
               ?.sort((a, b) => a.set_number - b.set_number)
-              .map((rep) => `${rep.weight_lbs}x${rep.reps_count}`)
+              .map((rep) => `${rep.weight_lbs}x${rep.rep_count}`)
               .join('  ·  ')}
           </p>
           <div className="flex items-center justify-between mt-1.5">

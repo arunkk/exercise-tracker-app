@@ -36,7 +36,7 @@ export function SetRow({ rep, onDeleted }: SetRowProps) {
         {rep.set_number}
       </span>
       <span className="text-sm font-medium flex-1">
-        {rep.weight_lbs} lbs <span className="text-muted-foreground">x</span> {rep.reps_count}
+        {rep.weight_lbs} lbs <span className="text-muted-foreground">x</span> {rep.rep_count}
       </span>
       {showDelete && (
         <button

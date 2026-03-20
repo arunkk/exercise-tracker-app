@@ -14,7 +14,8 @@ export interface Rep {
   id: string
   workout_log_id: string
   weight_lbs: number
-  reps_count: number
+  /** Matches DB column `rep_count` (Supabase returns this key). */
+  rep_count: number
   set_number: number
   created_at: string
 }

@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { MagnifyingGlass } from '@phosphor-icons/react'
+import { MagnifyingGlass, Heart } from '@phosphor-icons/react'
 import type { Exercise, MuscleGroup } from '@/lib/types'
+import { loadFavoriteIds, saveFavoriteIds } from '@/lib/favorites'
 import { ExerciseCard } from './exercise-card'
 import { AddExerciseModal } from './add-exercise-modal'
 
@@ -20,9 +21,15 @@ export function ExerciseLogger({ exercises, onSetLogged }: ExerciseLoggerProps) 
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearch, setShowSearch] = useState(false)
   const [filterMuscle, setFilterMuscle] = useState<MuscleGroup | 'all'>('all')
+  const [favoritesOnly, setFavoritesOnly] = useState(false)
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set())
   const [showAddModal, setShowAddModal] = useState(false)
   const [allExercises, setAllExercises] = useState(exercises)
   const prefsRestoredRef = useRef(false)
+
+  useEffect(() => {
+    setFavoriteIds(loadFavoriteIds())
+  }, [])
 
   useEffect(() => {
     setAllExercises(exercises)
@@ -61,13 +68,24 @@ export function ExerciseLogger({ exercises, onSetLogged }: ExerciseLoggerProps) 
     })
   }
 
+  const toggleFavorite = (exerciseId: string) => {
+    setFavoriteIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(exerciseId)) next.delete(exerciseId)
+      else next.add(exerciseId)
+      saveFavoriteIds(next)
+      return next
+    })
+  }
+
   const filteredExercises = useMemo(() => {
     return allExercises.filter((ex) => {
       const matchesSearch = !searchQuery || ex.name.toLowerCase().includes(searchQuery.toLowerCase())
       const matchesMuscle = filterMuscle === 'all' || ex.muscle_group === filterMuscle
-      return matchesSearch && matchesMuscle
+      const matchesFavorite = !favoritesOnly || favoriteIds.has(ex.id)
+      return matchesSearch && matchesMuscle && matchesFavorite
     })
-  }, [allExercises, searchQuery, filterMuscle])
+  }, [allExercises, searchQuery, filterMuscle, favoritesOnly, favoriteIds])
 
   const groupedExercises = useMemo(() => {
     const groups: Record<string, Exercise[]> = {}
@@ -106,9 +124,23 @@ export function ExerciseLogger({ exercises, onSetLogged }: ExerciseLoggerProps) 
 
         {/* Filter pills + search toggle */}
         <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-4 px-4">
+          <button
+            type="button"
+            onClick={() => setFavoritesOnly((v) => !v)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1 ${
+              favoritesOnly
+                ? 'bg-foreground text-background'
+                : 'bg-secondary text-secondary-foreground border border-border'
+            }`}
+            aria-pressed={favoritesOnly}
+          >
+            <Heart size={14} weight={favoritesOnly ? 'fill' : 'regular'} className="shrink-0" />
+            Favs
+          </button>
           {MUSCLE_GROUPS.map((muscle) => (
             <button
               key={muscle}
+              type="button"
               onClick={() => setFilterMuscle(muscle)}
               className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
                 filterMuscle === muscle
@@ -120,6 +152,7 @@ export function ExerciseLogger({ exercises, onSetLogged }: ExerciseLoggerProps) 
             </button>
           ))}
           <button
+            type="button"
             onClick={() => setShowSearch(!showSearch)}
             className="px-2.5 py-1.5 rounded-full bg-secondary border border-border text-muted-foreground flex-shrink-0"
           >
@@ -143,6 +176,8 @@ export function ExerciseLogger({ exercises, onSetLogged }: ExerciseLoggerProps) 
                   isExpanded={expandedId === exercise.id}
                   onToggle={() => handleToggleExercise(exercise.id)}
                   onSetLogged={onSetLogged}
+                  isFavorite={favoriteIds.has(exercise.id)}
+                  onToggleFavorite={() => toggleFavorite(exercise.id)}
                 />
               ))}
             </div>
@@ -151,18 +186,35 @@ export function ExerciseLogger({ exercises, onSetLogged }: ExerciseLoggerProps) 
 
         {filteredExercises.length === 0 && (
           <div className="text-center py-12 text-muted-foreground">
-            <p className="text-sm">No exercises found</p>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="mt-2 text-primary text-sm font-medium"
-            >
-              Add a custom exercise
-            </button>
+            {favoritesOnly && favoriteIds.size === 0 ? (
+              <>
+                <Heart size={40} className="mx-auto mb-3 opacity-40" />
+                <p className="text-sm font-medium text-foreground">No favorites yet</p>
+                <p className="text-sm mt-1">Tap the heart on any exercise to add it here.</p>
+              </>
+            ) : favoritesOnly && favoriteIds.size > 0 ? (
+              <>
+                <p className="text-sm font-medium text-foreground">No favorites here</p>
+                <p className="text-sm mt-1">Try another muscle filter or search.</p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm">No exercises found</p>
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(true)}
+                  className="mt-2 text-primary text-sm font-medium"
+                >
+                  Add a custom exercise
+                </button>
+              </>
+            )}
           </div>
         )}
 
         {/* Add custom exercise button */}
         <button
+          type="button"
           onClick={() => setShowAddModal(true)}
           className="w-full py-3 mt-2 border border-dashed border-border text-muted-foreground text-sm font-medium rounded-xl hover:bg-secondary/50 transition-colors"
         >

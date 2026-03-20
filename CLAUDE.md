@@ -31,7 +31,8 @@ BLOB_READ_WRITE_TOKEN=   # for @vercel/blob
 
 ### Component Structure
 - `components/home-page.tsx` — root client component, owns all state, tab navigation (Log/History)
-- `components/exercise-logger.tsx` — two-step flow: (1) exercise selection with search/filter, (2) set entry
+- `components/exercise-logger.tsx` — exercise selection with search/filter, favorites filter, set entry
+- Favorites: stored in `localStorage` key `reptrack:favoriteExerciseIds` (JSON array of exercise UUIDs); heart toggle on each card
 - `components/add-exercise-modal.tsx` — custom exercise creation with camera capture → Vercel Blob upload
 - `components/ui/` — shadcn/ui components (new-york style, neutral base color, lucide icons)
 

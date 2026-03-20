@@ -63,7 +63,7 @@ export function HomePage() {
   const todaysSets = todaysLogs.reduce((sum, log) => sum + (log.reps?.length || 0), 0)
   const todaysVolume = todaysLogs.reduce(
     (total, log) =>
-      total + (log.reps?.reduce((sum, rep) => sum + rep.weight_lbs * rep.reps_count, 0) || 0),
+      total + (log.reps?.reduce((sum, rep) => sum + rep.weight_lbs * rep.rep_count, 0) || 0),
     0
   )
 
@@ -142,7 +142,7 @@ export function HomePage() {
                 const dayExercises = logs.length
                 const daySets = logs.reduce((s, l) => s + (l.reps?.length || 0), 0)
                 const dayVolume = logs.reduce(
-                  (t, l) => t + (l.reps?.reduce((s, r) => s + r.weight_lbs * r.reps_count, 0) || 0),
+                  (t, l) => t + (l.reps?.reduce((s, r) => s + r.weight_lbs * r.rep_count, 0) || 0),
                   0
                 )
                 return (
