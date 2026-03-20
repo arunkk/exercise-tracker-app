@@ -82,23 +82,25 @@ export async function deleteWorkoutLog(logId: string): Promise<void> {
 export async function logSet(
   exerciseId: string,
   weightLbs: number,
-  repsCount: number
+  repsCount: number,
+  workoutDate?: string
 ): Promise<{ rep: Rep; setCount: number }> {
   const supabase = await createClient()
-  const today = new Date().toISOString().split('T')[0]
+  const day =
+    workoutDate?.trim() || new Date().toISOString().split('T')[0]
 
-  // Find or create today's workout log for this exercise
+  // Find or create workout log for this exercise on the chosen date
   let { data: log } = await supabase
     .from('workout_logs')
     .select('id')
     .eq('exercise_id', exerciseId)
-    .eq('workout_date', today)
-    .single()
+    .eq('workout_date', day)
+    .maybeSingle()
 
   if (!log) {
     const { data: newLog, error: logError } = await supabase
       .from('workout_logs')
-      .insert({ exercise_id: exerciseId, workout_date: today })
+      .insert({ exercise_id: exerciseId, workout_date: day })
       .select('id')
       .single()
     if (logError) throw logError
@@ -157,16 +159,19 @@ export async function deleteSet(repId: string): Promise<void> {
   revalidatePath('/')
 }
 
-export async function getTodaySets(exerciseId: string): Promise<Rep[]> {
+/** Sets logged for this exercise on a specific calendar date (YYYY-MM-DD). */
+export async function getSetsForExerciseOnDate(
+  exerciseId: string,
+  date: string
+): Promise<Rep[]> {
   const supabase = await createClient()
-  const today = new Date().toISOString().split('T')[0]
 
   const { data: log } = await supabase
     .from('workout_logs')
     .select('id')
     .eq('exercise_id', exerciseId)
-    .eq('workout_date', today)
-    .single()
+    .eq('workout_date', date)
+    .maybeSingle()
 
   if (!log) return []
 
@@ -180,18 +185,23 @@ export async function getTodaySets(exerciseId: string): Promise<Rep[]> {
   return reps || []
 }
 
-export async function getLastSessionSets(exerciseId: string): Promise<Rep[]> {
+/**
+ * Most recent session for this exercise strictly before `beforeDate` (YYYY-MM-DD).
+ */
+export async function getPreviousSessionSets(
+  exerciseId: string,
+  beforeDate: string
+): Promise<Rep[]> {
   const supabase = await createClient()
-  const today = new Date().toISOString().split('T')[0]
 
   const { data: log } = await supabase
     .from('workout_logs')
     .select('id')
     .eq('exercise_id', exerciseId)
-    .lt('workout_date', today)
+    .lt('workout_date', beforeDate)
     .order('workout_date', { ascending: false })
     .limit(1)
-    .single()
+    .maybeSingle()
 
   if (!log) return []
 
@@ -206,114 +216,3 @@ export async function getLastSessionSets(exerciseId: string): Promise<Rep[]> {
   return reps || []
 }
 
-export interface PatternAnalysis {
-  suggestedMuscleGroups: MuscleGroup[]
-  recentPattern: MuscleGroup[]
-  confidence: number
-}
-
-export async function analyzeWorkoutPattern(): Promise<PatternAnalysis> {
-  const supabase = await createClient()
-  
-  // Get last 14 workout logs to detect pattern
-  const { data: logs, error } = await supabase
-    .from('workout_logs')
-    .select(`
-      workout_date,
-      exercise:exercises(muscle_group)
-    `)
-    .order('workout_date', { ascending: false })
-    .order('created_at', { ascending: false })
-    .limit(30)
-  
-  if (error || !logs || logs.length === 0) {
-    return {
-      suggestedMuscleGroups: ['Chest', 'Back', 'Legs'],
-      recentPattern: [],
-      confidence: 0
-    }
-  }
-  
-  // Group by workout date to get muscle groups per day
-  const dayMuscleGroups: Map<string, Set<MuscleGroup>> = new Map()
-  
-  for (const log of logs) {
-    const date = log.workout_date
-    const exercise = log.exercise as unknown as { muscle_group: MuscleGroup } | null
-    const muscleGroup = exercise?.muscle_group
-    
-    if (!dayMuscleGroups.has(date)) {
-      dayMuscleGroups.set(date, new Set())
-    }
-    if (muscleGroup) dayMuscleGroups.get(date)!.add(muscleGroup)
-  }
-  
-  // Convert to array of primary muscle groups per day (most common for that day)
-  const dailyPattern: MuscleGroup[] = Array.from(dayMuscleGroups.entries())
-    .sort((a, b) => b[0].localeCompare(a[0])) // Sort by date descending
-    .map(([, muscles]) => {
-      // Get the first muscle group for that day (simplified)
-      return Array.from(muscles)[0]
-    })
-    .slice(0, 7) // Last 7 workout days
-  
-  // Detect repeating patterns (2-4 day cycles)
-  let bestPattern: MuscleGroup[] = []
-  let bestConfidence = 0
-  
-  for (let cycleLength = 2; cycleLength <= 4; cycleLength++) {
-    if (dailyPattern.length >= cycleLength * 2) {
-      const cycle = dailyPattern.slice(0, cycleLength)
-      let matches = 0
-      let total = 0
-      
-      for (let i = cycleLength; i < dailyPattern.length; i++) {
-        const expectedIndex = i % cycleLength
-        if (dailyPattern[i] === cycle[expectedIndex]) {
-          matches++
-        }
-        total++
-      }
-      
-      const confidence = total > 0 ? matches / total : 0
-      if (confidence > bestConfidence) {
-        bestConfidence = confidence
-        bestPattern = cycle
-      }
-    }
-  }
-  
-  // Predict next muscle group based on pattern
-  let suggestedMuscleGroups: MuscleGroup[]
-  
-  if (bestConfidence >= 0.5 && bestPattern.length > 0) {
-    // Use detected pattern to predict
-    const lastMuscleGroup = dailyPattern[0]
-    const lastIndex = bestPattern.indexOf(lastMuscleGroup)
-    const nextIndex = (lastIndex + 1) % bestPattern.length
-    
-    // Suggest the next in cycle, plus variations
-    suggestedMuscleGroups = [
-      bestPattern[nextIndex],
-      ...bestPattern.filter(m => m !== bestPattern[nextIndex])
-    ].slice(0, 3)
-  } else {
-    // No clear pattern, suggest based on what hasn't been done recently
-    const allMuscleGroups: MuscleGroup[] = ['Chest', 'Back', 'Legs', 'Arms', 'Shoulders', 'Core']
-    const recentMuscles = new Set(dailyPattern.slice(0, 2))
-    
-    suggestedMuscleGroups = allMuscleGroups
-      .filter(m => !recentMuscles.has(m))
-      .slice(0, 3)
-    
-    if (suggestedMuscleGroups.length < 3) {
-      suggestedMuscleGroups = allMuscleGroups.slice(0, 3)
-    }
-  }
-  
-  return {
-    suggestedMuscleGroups,
-    recentPattern: dailyPattern.slice(0, 5),
-    confidence: bestConfidence
-  }
-}

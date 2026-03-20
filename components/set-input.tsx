@@ -1,16 +1,26 @@
 'use client'
 
 import { Check } from '@phosphor-icons/react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Loader2 } from 'lucide-react'
 
 interface SetInputProps {
   onSubmit: (weight: number, reps: number) => Promise<void>
+  /** Prefill from last session (updates when hints load or date changes). */
+  initialWeight?: number
+  initialReps?: number
 }
 
-export function SetInput({ onSubmit }: SetInputProps) {
+export function SetInput({ onSubmit, initialWeight, initialReps }: SetInputProps) {
   const [weight, setWeight] = useState('')
   const [reps, setReps] = useState('')
+
+  useEffect(() => {
+    if (initialWeight != null && initialWeight > 0) setWeight(String(initialWeight))
+    else setWeight('')
+    if (initialReps != null && initialReps > 0) setReps(String(initialReps))
+    else setReps('')
+  }, [initialWeight, initialReps])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async () => {

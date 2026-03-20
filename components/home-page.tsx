@@ -3,11 +3,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Barbell, ClockCounterClockwise } from '@phosphor-icons/react'
 import { Loader2 } from 'lucide-react'
-import type { Exercise, WorkoutLog, MuscleGroup } from '@/lib/types'
+import type { Exercise, WorkoutLog } from '@/lib/types'
 import { ExerciseLogger } from './exercise-logger'
 import { WorkoutLogItem } from './workout-log-item'
-import { SuggestionBanner } from './suggestion-banner'
-import { getExercises, getWorkoutLogs, analyzeWorkoutPattern } from '@/lib/actions'
+import { getExercises, getWorkoutLogs } from '@/lib/actions'
 
 type Tab = 'log' | 'history'
 
@@ -16,22 +15,18 @@ export function HomePage() {
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [workoutLogs, setWorkoutLogs] = useState<WorkoutLog[]>([])
   const [hasMore, setHasMore] = useState(true)
-  const [suggestedMuscleGroups, setSuggestedMuscleGroups] = useState<MuscleGroup[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
-  const [filterFromSuggestion, setFilterFromSuggestion] = useState<MuscleGroup | null>(null)
 
   const loadData = useCallback(async () => {
     try {
-      const [exercisesData, logsResult, patternData] = await Promise.all([
+      const [exercisesData, logsResult] = await Promise.all([
         getExercises(),
         getWorkoutLogs(20, 0),
-        analyzeWorkoutPattern(),
       ])
       setExercises(exercisesData)
       setWorkoutLogs(logsResult.data)
       setHasMore(logsResult.hasMore)
-      setSuggestedMuscleGroups(patternData.suggestedMuscleGroups)
     } catch (error) {
       console.error('Failed to load data:', error)
     } finally {
@@ -58,13 +53,7 @@ export function HomePage() {
   }
 
   const handleSetLogged = () => {
-    // Reload all data to update stats, logs, patterns
     loadData()
-  }
-
-  const handleSuggestionFilter = (muscle: MuscleGroup) => {
-    setFilterFromSuggestion(muscle)
-    setTab('log')
   }
 
   // Today's stats
@@ -74,7 +63,7 @@ export function HomePage() {
   const todaysSets = todaysLogs.reduce((sum, log) => sum + (log.reps?.length || 0), 0)
   const todaysVolume = todaysLogs.reduce(
     (total, log) =>
-      total + (log.reps?.reduce((sum, rep) => sum + rep.weight_lbs * rep.reps_count, 0) || 0),
+      total + (log.reps?.reduce((sum, rep) => sum + rep.weight_lbs * rep.rep_count, 0) || 0),
     0
   )
 
@@ -120,14 +109,6 @@ export function HomePage() {
           </div>
         </div>
 
-        {/* Suggestion banner */}
-        {suggestedMuscleGroups.length > 0 && (
-          <SuggestionBanner
-            suggestedMuscleGroup={suggestedMuscleGroups[0]}
-            onFilter={handleSuggestionFilter}
-          />
-        )}
-
         {/* Inline stats */}
         <p className="text-xs text-muted-foreground">
           {todaysSets > 0
@@ -139,11 +120,7 @@ export function HomePage() {
       {/* Main Content */}
       <main className="flex-1 overflow-hidden">
         {tab === 'log' ? (
-          <ExerciseLogger
-            exercises={exercises}
-            suggestedMuscleGroups={suggestedMuscleGroups}
-            onSetLogged={handleSetLogged}
-          />
+          <ExerciseLogger exercises={exercises} onSetLogged={handleSetLogged} />
         ) : (
           <div
             className="h-full overflow-y-auto px-4 pb-4"
@@ -165,7 +142,7 @@ export function HomePage() {
                 const dayExercises = logs.length
                 const daySets = logs.reduce((s, l) => s + (l.reps?.length || 0), 0)
                 const dayVolume = logs.reduce(
-                  (t, l) => t + (l.reps?.reduce((s, r) => s + r.weight_lbs * r.reps_count, 0) || 0),
+                  (t, l) => t + (l.reps?.reduce((s, r) => s + r.weight_lbs * r.rep_count, 0) || 0),
                   0
                 )
                 return (
