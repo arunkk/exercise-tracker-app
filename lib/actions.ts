@@ -239,12 +239,13 @@ export async function analyzeWorkoutPattern(): Promise<PatternAnalysis> {
   
   for (const log of logs) {
     const date = log.workout_date
-    const muscleGroup = (log.exercise as { muscle_group: MuscleGroup })?.muscle_group
+    const exercise = log.exercise as unknown as { muscle_group: MuscleGroup } | null
+    const muscleGroup = exercise?.muscle_group
     
     if (!dayMuscleGroups.has(date)) {
       dayMuscleGroups.set(date, new Set())
     }
-    dayMuscleGroups.get(date)!.add(muscleGroup)
+    if (muscleGroup) dayMuscleGroups.get(date)!.add(muscleGroup)
   }
   
   // Convert to array of primary muscle groups per day (most common for that day)
