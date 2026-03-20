@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Dumbbell, History, TrendingUp, RefreshCw } from 'lucide-react'
+import { Barbell, ClockCounterClockwise } from '@phosphor-icons/react'
+import { Loader2 } from 'lucide-react'
 import type { Exercise, WorkoutLog, MuscleGroup } from '@/lib/types'
 import { ExerciseLogger } from './exercise-logger'
 import { WorkoutLogItem } from './workout-log-item'
+import { SuggestionBanner } from './suggestion-banner'
 import { getExercises, getWorkoutLogs, analyzeWorkoutPattern } from '@/lib/actions'
 
 type Tab = 'log' | 'history'
@@ -13,177 +15,203 @@ export function HomePage() {
   const [tab, setTab] = useState<Tab>('log')
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [workoutLogs, setWorkoutLogs] = useState<WorkoutLog[]>([])
-  const [suggestedMuscleGroups, setSuggestedMuscleGroups] = useState<MuscleGroup[]>(['Chest', 'Back', 'Legs'])
-  const [recentPattern, setRecentPattern] = useState<MuscleGroup[]>([])
+  const [hasMore, setHasMore] = useState(true)
+  const [suggestedMuscleGroups, setSuggestedMuscleGroups] = useState<MuscleGroup[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  
-  const loadData = useCallback(async (showRefresh = false) => {
-    if (showRefresh) setIsRefreshing(true)
-    
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [filterFromSuggestion, setFilterFromSuggestion] = useState<MuscleGroup | null>(null)
+
+  const loadData = useCallback(async () => {
     try {
-      const [exercisesData, logsData, patternData] = await Promise.all([
+      const [exercisesData, logsResult, patternData] = await Promise.all([
         getExercises(),
-        getWorkoutLogs(),
-        analyzeWorkoutPattern()
+        getWorkoutLogs(20, 0),
+        analyzeWorkoutPattern(),
       ])
-      
       setExercises(exercisesData)
-      setWorkoutLogs(logsData)
+      setWorkoutLogs(logsResult.data)
+      setHasMore(logsResult.hasMore)
       setSuggestedMuscleGroups(patternData.suggestedMuscleGroups)
-      setRecentPattern(patternData.recentPattern)
     } catch (error) {
       console.error('Failed to load data:', error)
     } finally {
       setIsLoading(false)
-      setIsRefreshing(false)
     }
   }, [])
-  
+
   useEffect(() => {
     loadData()
   }, [loadData])
-  
-  const handleLogCreated = () => {
-    loadData(true)
-    // Switch to history to show the new log
-    setTab('history')
+
+  const loadMore = async () => {
+    if (isLoadingMore || !hasMore) return
+    setIsLoadingMore(true)
+    try {
+      const result = await getWorkoutLogs(20, workoutLogs.length)
+      setWorkoutLogs((prev) => [...prev, ...result.data])
+      setHasMore(result.hasMore)
+    } catch (error) {
+      console.error('Failed to load more:', error)
+    } finally {
+      setIsLoadingMore(false)
+    }
   }
-  
-  const todaysLogs = workoutLogs.filter((log) => {
-    const today = new Date().toISOString().split('T')[0]
-    return log.workout_date === today
-  })
-  
-  const todaysVolume = todaysLogs.reduce((total, log) => {
-    return total + (log.reps?.reduce((sum, rep) => sum + rep.weight_lbs * rep.reps_count, 0) || 0)
-  }, 0)
-  
+
+  const handleSetLogged = () => {
+    // Reload all data to update stats, logs, patterns
+    loadData()
+  }
+
+  const handleSuggestionFilter = (muscle: MuscleGroup) => {
+    setFilterFromSuggestion(muscle)
+    setTab('log')
+  }
+
+  // Today's stats
+  const today = new Date().toISOString().split('T')[0]
+  const todaysLogs = workoutLogs.filter((log) => log.workout_date === today)
+  const todaysExercises = todaysLogs.length
+  const todaysSets = todaysLogs.reduce((sum, log) => sum + (log.reps?.length || 0), 0)
+  const todaysVolume = todaysLogs.reduce(
+    (total, log) =>
+      total + (log.reps?.reduce((sum, rep) => sum + rep.weight_lbs * rep.reps_count, 0) || 0),
+    0
+  )
+
+  // Group history by date
+  const groupedHistory = workoutLogs.reduce<Record<string, WorkoutLog[]>>((acc, log) => {
+    const date = log.workout_date
+    if (!acc[date]) acc[date] = []
+    acc[date].push(log)
+    return acc
+  }, {})
+
+  const formatDateLabel = (dateStr: string) => {
+    const date = new Date(dateStr + 'T00:00:00')
+    const todayDate = new Date()
+    todayDate.setHours(0, 0, 0, 0)
+    const diffDays = Math.floor((todayDate.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
+    if (diffDays === 0) return 'Today'
+    if (diffDays === 1) return 'Yesterday'
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-background">
         <div className="flex flex-col items-center gap-4">
-          <Dumbbell className="w-12 h-12 text-primary animate-pulse" />
-          <p className="text-muted-foreground">Loading workouts...</p>
+          <Barbell size={48} className="text-primary animate-pulse" />
+          <p className="text-sm text-muted-foreground">Loading workouts...</p>
         </div>
       </div>
     )
   }
-  
+
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <header className="flex-shrink-0 p-4 border-b border-border bg-card">
+      <header className="flex-shrink-0 px-4 pt-4 pb-3 space-y-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-              <Dumbbell className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="font-bold text-lg">RepTrack</h1>
-              <p className="text-xs text-muted-foreground">
-                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-              </p>
-            </div>
-          </div>
-          
-          <button
-            onClick={() => loadData(true)}
-            disabled={isRefreshing}
-            className="p-2 hover:bg-muted rounded-full transition-colors disabled:opacity-50"
-          >
-            <RefreshCw className={`w-5 h-5 text-muted-foreground ${isRefreshing ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-        
-        {/* Today's Stats */}
-        <div className="mt-4 grid grid-cols-3 gap-3">
-          <div className="p-3 bg-muted rounded-xl">
-            <p className="text-2xl font-bold">{todaysLogs.length}</p>
-            <p className="text-xs text-muted-foreground">Exercises</p>
-          </div>
-          <div className="p-3 bg-muted rounded-xl">
-            <p className="text-2xl font-bold">
-              {todaysLogs.reduce((sum, log) => sum + (log.reps?.length || 0), 0)}
-            </p>
-            <p className="text-xs text-muted-foreground">Sets</p>
-          </div>
-          <div className="p-3 bg-muted rounded-xl">
-            <p className="text-2xl font-bold">{(todaysVolume / 1000).toFixed(1)}k</p>
-            <p className="text-xs text-muted-foreground">Volume (lbs)</p>
-          </div>
-        </div>
-        
-        {/* Pattern Indicator */}
-        {recentPattern.length > 0 && (
-          <div className="mt-3 p-3 bg-primary/10 rounded-xl">
-            <div className="flex items-center gap-2 text-sm">
-              <TrendingUp className="w-4 h-4 text-primary" />
-              <span className="text-muted-foreground">Your pattern:</span>
-              <div className="flex gap-1">
-                {recentPattern.slice(0, 4).map((muscle, i) => (
-                  <span
-                    key={i}
-                    className={`px-2 py-0.5 rounded text-xs font-medium ${
-                      i === 0 ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
-                    }`}
-                  >
-                    {muscle.slice(0, 3)}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Suggested next: <span className="text-primary font-medium">{suggestedMuscleGroups[0]}</span>
+          <div>
+            <h1 className="font-semibold text-base">RepTrack</h1>
+            <p className="text-xs text-muted-foreground">
+              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
             </p>
           </div>
+        </div>
+
+        {/* Suggestion banner */}
+        {suggestedMuscleGroups.length > 0 && (
+          <SuggestionBanner
+            suggestedMuscleGroup={suggestedMuscleGroups[0]}
+            onFilter={handleSuggestionFilter}
+          />
         )}
+
+        {/* Inline stats */}
+        <p className="text-xs text-muted-foreground">
+          {todaysSets > 0
+            ? `${todaysExercises} exercise${todaysExercises !== 1 ? 's' : ''} · ${todaysSets} set${todaysSets !== 1 ? 's' : ''} · ${(todaysVolume / 1000).toFixed(1)}k lbs`
+            : 'No sets logged today'}
+        </p>
       </header>
-      
+
       {/* Main Content */}
       <main className="flex-1 overflow-hidden">
         {tab === 'log' ? (
           <ExerciseLogger
             exercises={exercises}
             suggestedMuscleGroups={suggestedMuscleGroups}
-            onLogCreated={handleLogCreated}
+            onSetLogged={handleSetLogged}
           />
         ) : (
-          <div className="h-full overflow-y-auto p-4 space-y-3">
+          <div
+            className="h-full overflow-y-auto px-4 pb-4"
+            onScroll={(e) => {
+              const el = e.currentTarget
+              if (el.scrollHeight - el.scrollTop - el.clientHeight < 200) {
+                loadMore()
+              }
+            }}
+          >
             {workoutLogs.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
-                <History className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No workout logs yet</p>
-                <p className="text-sm">Start logging your exercises!</p>
+                <ClockCounterClockwise size={48} className="mx-auto mb-4 opacity-50" />
+                <p className="font-medium">No workouts yet</p>
+                <p className="text-sm mt-1">Your logged exercises will appear here</p>
               </div>
             ) : (
-              workoutLogs.map((log) => (
-                <WorkoutLogItem key={log.id} log={log} onDelete={() => loadData()} />
-              ))
+              Object.entries(groupedHistory).map(([date, logs]) => {
+                const dayExercises = logs.length
+                const daySets = logs.reduce((s, l) => s + (l.reps?.length || 0), 0)
+                const dayVolume = logs.reduce(
+                  (t, l) => t + (l.reps?.reduce((s, r) => s + r.weight_lbs * r.reps_count, 0) || 0),
+                  0
+                )
+                return (
+                  <div key={date} className="mb-4">
+                    <div className="sticky top-0 bg-background py-2 z-10">
+                      <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                        {formatDateLabel(date)} · {dayExercises} exercise{dayExercises !== 1 ? 's' : ''} · {daySets} sets · {(dayVolume / 1000).toFixed(1)}k lbs
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      {logs.map((log) => (
+                        <WorkoutLogItem key={log.id} log={log} onDelete={loadData} />
+                      ))}
+                    </div>
+                  </div>
+                )
+              })
+            )}
+            {isLoadingMore && (
+              <div className="flex justify-center py-4">
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              </div>
             )}
           </div>
         )}
       </main>
-      
+
       {/* Bottom Navigation */}
       <nav className="flex-shrink-0 border-t border-border bg-card safe-area-pb">
         <div className="flex">
           <button
             onClick={() => setTab('log')}
-            className={`flex-1 flex flex-col items-center py-3 gap-1 transition-colors ${
-              tab === 'log' ? 'text-primary' : 'text-muted-foreground'
+            className={`flex-1 flex flex-col items-center py-3 gap-1 min-h-[48px] transition-colors ${
+              tab === 'log' ? 'text-foreground' : 'text-muted-foreground'
             }`}
           >
-            <Dumbbell className="w-6 h-6" />
+            <Barbell size={24} />
             <span className="text-xs font-medium">Log</span>
           </button>
           <button
             onClick={() => setTab('history')}
-            className={`flex-1 flex flex-col items-center py-3 gap-1 transition-colors ${
-              tab === 'history' ? 'text-primary' : 'text-muted-foreground'
+            className={`flex-1 flex flex-col items-center py-3 gap-1 min-h-[48px] transition-colors ${
+              tab === 'history' ? 'text-foreground' : 'text-muted-foreground'
             }`}
           >
-            <History className="w-6 h-6" />
+            <ClockCounterClockwise size={24} />
             <span className="text-xs font-medium">History</span>
           </button>
         </div>
