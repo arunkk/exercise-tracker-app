@@ -53,7 +53,7 @@ export async function createExercise(
     .insert({
       name,
       muscle_group: muscleGroup,
-      image_url: imageUrl,
+      photo_url: imageUrl,
       is_machine: isMachine,
       is_custom: true
     })
@@ -62,6 +62,30 @@ export async function createExercise(
   
   if (error) throw error
   
+  revalidatePath('/')
+  return data
+}
+
+export async function updateExercise(
+  id: string,
+  updates: {
+    name?: string
+    muscle_group?: MuscleGroup
+    is_machine?: boolean
+    photo_url?: string | null
+  }
+): Promise<Exercise> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('exercises')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+
   revalidatePath('/')
   return data
 }

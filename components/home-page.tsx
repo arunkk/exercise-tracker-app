@@ -56,17 +56,6 @@ export function HomePage() {
     loadData()
   }
 
-  // Today's stats
-  const today = new Date().toISOString().split('T')[0]
-  const todaysLogs = workoutLogs.filter((log) => log.workout_date === today)
-  const todaysExercises = todaysLogs.length
-  const todaysSets = todaysLogs.reduce((sum, log) => sum + (log.reps?.length || 0), 0)
-  const todaysVolume = todaysLogs.reduce(
-    (total, log) =>
-      total + (log.reps?.reduce((sum, rep) => sum + rep.weight_lbs * rep.rep_count, 0) || 0),
-    0
-  )
-
   // Group history by date
   const groupedHistory = workoutLogs.reduce<Record<string, WorkoutLog[]>>((acc, log) => {
     const date = log.workout_date
@@ -89,8 +78,10 @@ export function HomePage() {
     return (
       <div className="flex items-center justify-center h-screen bg-background">
         <div className="flex flex-col items-center gap-4">
-          <Barbell size={48} className="text-primary animate-pulse" />
-          <p className="text-sm text-muted-foreground">Loading workouts...</p>
+          <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+            <Barbell size={28} className="text-primary animate-pulse" />
+          </div>
+          <p className="text-sm text-muted-foreground font-medium">Loading workouts...</p>
         </div>
       </div>
     )
@@ -99,22 +90,16 @@ export function HomePage() {
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <header className="flex-shrink-0 px-4 pt-4 pb-3 space-y-3">
+      <header className="flex-shrink-0 px-4 pt-5 pb-2">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="font-semibold text-base">RepTrack</h1>
-            <p className="text-xs text-muted-foreground">
+            <h1 className="font-bold text-lg tracking-tight">RepTrack</h1>
+            <p className="text-xs text-muted-foreground font-medium">
               {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
             </p>
           </div>
         </div>
 
-        {/* Inline stats */}
-        <p className="text-xs text-muted-foreground">
-          {todaysSets > 0
-            ? `${todaysExercises} exercise${todaysExercises !== 1 ? 's' : ''} · ${todaysSets} set${todaysSets !== 1 ? 's' : ''} · ${(todaysVolume / 1000).toFixed(1)}k lbs`
-            : 'No sets logged today'}
-        </p>
       </header>
 
       {/* Main Content */}
@@ -132,9 +117,11 @@ export function HomePage() {
             }}
           >
             {workoutLogs.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <ClockCounterClockwise size={48} className="mx-auto mb-4 opacity-50" />
-                <p className="font-medium">No workouts yet</p>
+              <div className="text-center py-16 text-muted-foreground">
+                <div className="w-14 h-14 rounded-2xl bg-secondary flex items-center justify-center mx-auto mb-4">
+                  <ClockCounterClockwise size={28} className="opacity-50" />
+                </div>
+                <p className="font-semibold text-foreground">No workouts yet</p>
                 <p className="text-sm mt-1">Your logged exercises will appear here</p>
               </div>
             ) : (
@@ -146,11 +133,16 @@ export function HomePage() {
                   0
                 )
                 return (
-                  <div key={date} className="mb-4">
-                    <div className="sticky top-0 bg-background py-2 z-10">
-                      <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                        {formatDateLabel(date)} · {dayExercises} exercise{dayExercises !== 1 ? 's' : ''} · {daySets} sets · {(dayVolume / 1000).toFixed(1)}k lbs
-                      </p>
+                  <div key={date} className="mb-5">
+                    <div className="sticky top-0 bg-background/80 backdrop-blur-sm py-2.5 z-10">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                          {formatDateLabel(date)}
+                        </p>
+                        <p className="text-[10px] font-semibold text-muted-foreground">
+                          {dayExercises} ex · {daySets} sets · {(dayVolume / 1000).toFixed(1)}k lbs
+                        </p>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       {logs.map((log) => (
@@ -171,25 +163,25 @@ export function HomePage() {
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="flex-shrink-0 border-t border-border bg-card safe-area-pb">
+      <nav className="flex-shrink-0 border-t border-border bg-card/80 backdrop-blur-md safe-area-pb">
         <div className="flex">
           <button
             onClick={() => setTab('log')}
-            className={`flex-1 flex flex-col items-center py-3 gap-1 min-h-[48px] transition-colors ${
-              tab === 'log' ? 'text-foreground' : 'text-muted-foreground'
+            className={`relative flex-1 flex flex-col items-center py-3 gap-1 min-h-[52px] transition-colors ${
+              tab === 'log' ? 'text-primary nav-active' : 'text-muted-foreground'
             }`}
           >
-            <Barbell size={24} />
-            <span className="text-xs font-medium">Log</span>
+            <Barbell size={24} weight={tab === 'log' ? 'fill' : 'regular'} />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Log</span>
           </button>
           <button
             onClick={() => setTab('history')}
-            className={`flex-1 flex flex-col items-center py-3 gap-1 min-h-[48px] transition-colors ${
-              tab === 'history' ? 'text-foreground' : 'text-muted-foreground'
+            className={`relative flex-1 flex flex-col items-center py-3 gap-1 min-h-[52px] transition-colors ${
+              tab === 'history' ? 'text-primary nav-active' : 'text-muted-foreground'
             }`}
           >
-            <ClockCounterClockwise size={24} />
-            <span className="text-xs font-medium">History</span>
+            <ClockCounterClockwise size={24} weight={tab === 'history' ? 'fill' : 'regular'} />
+            <span className="text-[10px] font-bold uppercase tracking-wider">History</span>
           </button>
         </div>
       </nav>

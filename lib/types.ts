@@ -1,11 +1,11 @@
-export type MuscleGroup = 'Chest' | 'Back' | 'Legs' | 'Arms' | 'Shoulders' | 'Core'
+export type MuscleGroup = 'Chest' | 'Back' | 'Legs' | 'Hips' | 'Arms' | 'Shoulders' | 'Core'
 
 export interface Exercise {
   id: string
   name: string
   muscle_group: MuscleGroup
   is_machine: boolean
-  image_url: string | null
+  photo_url: string | null
   is_custom: boolean
   created_at: string
 }

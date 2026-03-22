@@ -41,7 +41,7 @@ export function SetInput({ onSubmit, initialWeight, initialReps }: SetInputProps
   const canSubmit = parseFloat(weight) > 0 && parseInt(reps) > 0 && !isSubmitting
 
   return (
-    <div className="flex items-center gap-2 px-3 py-2 bg-secondary rounded-lg border border-border">
+    <div className="flex items-center gap-2 px-3 py-2.5 bg-secondary rounded-xl border border-border">
       <input
         type="number"
         inputMode="decimal"
@@ -49,9 +49,9 @@ export function SetInput({ onSubmit, initialWeight, initialReps }: SetInputProps
         onChange={(e) => setWeight(e.target.value)}
         placeholder="lbs"
         min="0"
-        className="w-20 px-2 py-1.5 bg-background rounded-md text-sm font-medium text-center border border-border focus:ring-2 focus:ring-primary focus:outline-none"
+        className="w-20 px-2.5 py-2 bg-background rounded-lg text-sm font-bold text-center border border-border focus:ring-2 focus:ring-primary/50 focus:border-primary/50 focus:outline-none placeholder:text-muted-foreground/50 placeholder:font-medium"
       />
-      <span className="text-xs text-muted-foreground">x</span>
+      <span className="text-xs text-muted-foreground font-bold">×</span>
       <input
         type="number"
         inputMode="numeric"
@@ -59,12 +59,12 @@ export function SetInput({ onSubmit, initialWeight, initialReps }: SetInputProps
         onChange={(e) => setReps(e.target.value)}
         placeholder="reps"
         min="0"
-        className="w-20 px-2 py-1.5 bg-background rounded-md text-sm font-medium text-center border border-border focus:ring-2 focus:ring-primary focus:outline-none"
+        className="w-20 px-2.5 py-2 bg-background rounded-lg text-sm font-bold text-center border border-border focus:ring-2 focus:ring-primary/50 focus:border-primary/50 focus:outline-none placeholder:text-muted-foreground/50 placeholder:font-medium"
       />
       <button
         onClick={handleSubmit}
         disabled={!canSubmit}
-        className="ml-auto p-2 bg-primary text-primary-foreground rounded-lg disabled:opacity-30 transition-opacity"
+        className="ml-auto p-2.5 bg-primary text-primary-foreground rounded-xl disabled:opacity-20 transition-all hover:brightness-110 active:scale-95"
       >
         {isSubmitting ? (
           <Loader2 className="w-4 h-4 animate-spin" />
