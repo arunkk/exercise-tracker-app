@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Barbell, ClockCounterClockwise, Fire, ListBullets, TrendUp } from '@phosphor-icons/react'
+import { Barbell, ClockCounterClockwise } from '@phosphor-icons/react'
 import { Loader2 } from 'lucide-react'
 import type { Exercise, WorkoutLog } from '@/lib/types'
 import { ExerciseLogger } from './exercise-logger'
@@ -56,17 +56,6 @@ export function HomePage() {
     loadData()
   }
 
-  // Today's stats
-  const today = new Date().toISOString().split('T')[0]
-  const todaysLogs = workoutLogs.filter((log) => log.workout_date === today)
-  const todaysExercises = todaysLogs.length
-  const todaysSets = todaysLogs.reduce((sum, log) => sum + (log.reps?.length || 0), 0)
-  const todaysVolume = todaysLogs.reduce(
-    (total, log) =>
-      total + (log.reps?.reduce((sum, rep) => sum + rep.weight_lbs * rep.rep_count, 0) || 0),
-    0
-  )
-
   // Group history by date
   const groupedHistory = workoutLogs.reduce<Record<string, WorkoutLog[]>>((acc, log) => {
     const date = log.workout_date
@@ -101,7 +90,7 @@ export function HomePage() {
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <header className="flex-shrink-0 px-4 pt-5 pb-3 space-y-4">
+      <header className="flex-shrink-0 px-4 pt-5 pb-2">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-bold text-lg tracking-tight">RepTrack</h1>
@@ -111,32 +100,6 @@ export function HomePage() {
           </div>
         </div>
 
-        {/* Stats cards */}
-        <div className="grid grid-cols-3 gap-2.5">
-          <div className="stat-glow bg-card rounded-xl px-3 py-3 border border-border">
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <Fire size={14} weight="fill" className="text-primary" />
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Exercises</span>
-            </div>
-            <p className="text-xl font-extrabold tracking-tight">{todaysExercises}</p>
-          </div>
-          <div className="stat-glow bg-card rounded-xl px-3 py-3 border border-border">
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <ListBullets size={14} weight="bold" className="text-primary" />
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Sets</span>
-            </div>
-            <p className="text-xl font-extrabold tracking-tight">{todaysSets}</p>
-          </div>
-          <div className="stat-glow bg-card rounded-xl px-3 py-3 border border-border">
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <TrendUp size={14} weight="bold" className="text-primary" />
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Volume</span>
-            </div>
-            <p className="text-xl font-extrabold tracking-tight">
-              {todaysVolume >= 1000 ? `${(todaysVolume / 1000).toFixed(1)}k` : todaysVolume}
-            </p>
-          </div>
-        </div>
       </header>
 
       {/* Main Content */}

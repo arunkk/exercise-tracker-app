@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Barbell, GearSix, CaretRight, Heart, PencilSimple, Camera, X, Check } from '@phosphor-icons/react'
+import { CaretRight, Heart, PencilSimple, Camera, X, Check } from '@phosphor-icons/react'
 import { Loader2 } from 'lucide-react'
 import type { Exercise, Rep, MuscleGroup } from '@/lib/types'
 import {
@@ -12,6 +12,7 @@ import {
 } from '@/lib/actions'
 import { localDateISOString } from '@/lib/date'
 import { resolvePhotoSrc, resizeImageToThumbnail } from '@/lib/image-utils'
+import { getExerciseIcon, getGroupColors } from '@/lib/exercise-icons'
 import { SetInput } from './set-input'
 import { SetRow } from './set-row'
 import { toast } from 'sonner'
@@ -168,7 +169,8 @@ export function ExerciseCard({
     }
   }
 
-  const Icon = exercise.is_machine ? GearSix : Barbell
+  const retroIcon = getExerciseIcon(exercise.name, exercise.muscle_group, exercise.is_machine)
+  const groupColors = getGroupColors(exercise.muscle_group)
   const maxDate = localDateISOString()
 
   // --- Edit mode rendering ---
@@ -308,7 +310,7 @@ export function ExerciseCard({
           onClick={onToggle}
           className="flex flex-1 min-w-0 items-center gap-3 p-3 text-left"
         >
-          <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
+          <div className={`flex-shrink-0 w-10 h-10 rounded-xl border flex items-center justify-center ${exercise.photo_url ? '' : `${groupColors.bg} ${groupColors.border}`}`}>
             {exercise.photo_url ? (
               <img
                 src={resolvePhotoSrc(exercise.photo_url)}
@@ -316,7 +318,7 @@ export function ExerciseCard({
                 className="w-full h-full object-cover rounded-xl"
               />
             ) : (
-              <Icon size={20} weight="duotone" className="text-muted-foreground" />
+              <span className="text-lg leading-none" role="img" aria-label={exercise.name}>{retroIcon}</span>
             )}
           </div>
           <div className="flex-1 min-w-0">

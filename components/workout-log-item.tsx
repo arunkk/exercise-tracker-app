@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Barbell, GearSix, Trash } from '@phosphor-icons/react'
+import { Trash } from '@phosphor-icons/react'
 import { resolvePhotoSrc } from '@/lib/image-utils'
+import { getExerciseIcon, getGroupColors } from '@/lib/exercise-icons'
 import type { WorkoutLog } from '@/lib/types'
 import { deleteWorkoutLog } from '@/lib/actions'
 import { toast } from 'sonner'
@@ -40,12 +41,13 @@ export function WorkoutLogItem({ log, onDelete }: WorkoutLogItemProps) {
   }
 
   const totalWeight = log.reps?.reduce((sum, rep) => sum + rep.weight_lbs * rep.rep_count, 0) || 0
-  const Icon = log.exercise?.is_machine ? GearSix : Barbell
+  const retroIcon = log.exercise ? getExerciseIcon(log.exercise.name, log.exercise.muscle_group, log.exercise.is_machine) : '🏋️'
+  const groupColors = log.exercise ? getGroupColors(log.exercise.muscle_group) : { bg: 'bg-secondary', border: 'border-border' }
 
   return (
     <div className="p-3.5 bg-card rounded-xl border border-border card-lift">
       <div className="flex items-start gap-3">
-        <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
+        <div className={`flex-shrink-0 w-10 h-10 rounded-xl border flex items-center justify-center ${log.exercise?.photo_url ? '' : `${groupColors.bg} ${groupColors.border}`}`}>
           {log.exercise?.photo_url ? (
             <img
               src={resolvePhotoSrc(log.exercise.photo_url)}
@@ -53,7 +55,7 @@ export function WorkoutLogItem({ log, onDelete }: WorkoutLogItemProps) {
               className="w-full h-full object-cover rounded-xl"
             />
           ) : (
-            <Icon size={20} weight="duotone" className="text-muted-foreground" />
+            <span className="text-lg leading-none" role="img" aria-label={log.exercise?.name || 'Exercise'}>{retroIcon}</span>
           )}
         </div>
         <div className="flex-1 min-w-0">
