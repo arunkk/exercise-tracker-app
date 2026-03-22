@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { MagnifyingGlass, Heart } from '@phosphor-icons/react'
+import { MagnifyingGlass, Heart, Plus } from '@phosphor-icons/react'
 import type { Exercise, MuscleGroup } from '@/lib/types'
 import { loadFavoriteIds, saveFavoriteIds } from '@/lib/favorites'
 import { ExerciseCard } from './exercise-card'
@@ -14,7 +14,7 @@ interface ExerciseLoggerProps {
   onSetLogged: () => void
 }
 
-const MUSCLE_GROUPS: (MuscleGroup | 'all')[] = ['all', 'Chest', 'Back', 'Legs', 'Arms', 'Shoulders', 'Core']
+const MUSCLE_GROUPS: (MuscleGroup | 'all')[] = ['all', 'Chest', 'Back', 'Legs', 'Hips', 'Arms', 'Shoulders', 'Core']
 
 export function ExerciseLogger({ exercises, onSetLogged }: ExerciseLoggerProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -103,38 +103,42 @@ export function ExerciseLogger({ exercises, onSetLogged }: ExerciseLoggerProps) 
     setAllExercises((prev) => [...prev, exercise])
   }
 
+  const handleExerciseUpdated = (updated: Exercise) => {
+    setAllExercises((prev) => prev.map((ex) => (ex.id === updated.id ? updated : ex)))
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Filters */}
-      <div className="px-4 pt-3 pb-2 space-y-2">
+      <div className="px-4 pt-1 pb-2 space-y-2.5">
         {/* Search (collapsible) */}
         {showSearch && (
           <div className="relative">
-            <MagnifyingGlass size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <MagnifyingGlass size={16} weight="bold" className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search exercises..."
               autoFocus
-              className="w-full pl-9 pr-4 py-2.5 bg-secondary rounded-lg text-sm border border-border focus:ring-2 focus:ring-primary focus:outline-none"
+              className="w-full pl-9 pr-4 py-2.5 bg-card rounded-xl text-sm font-medium border border-border focus:ring-2 focus:ring-primary/50 focus:border-primary/50 focus:outline-none placeholder:text-muted-foreground/60"
             />
           </div>
         )}
 
         {/* Filter pills + search toggle */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-4 px-4">
+        <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide">
           <button
             type="button"
             onClick={() => setFavoritesOnly((v) => !v)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1 ${
+            className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
               favoritesOnly
-                ? 'bg-foreground text-background'
-                : 'bg-secondary text-secondary-foreground border border-border'
+                ? 'pill-active text-primary-foreground'
+                : 'bg-card text-secondary-foreground border border-border'
             }`}
             aria-pressed={favoritesOnly}
           >
-            <Heart size={14} weight={favoritesOnly ? 'fill' : 'regular'} className="shrink-0" />
+            <Heart size={13} weight={favoritesOnly ? 'fill' : 'bold'} className="shrink-0" />
             Favs
           </button>
           {MUSCLE_GROUPS.map((muscle) => (
@@ -142,10 +146,10 @@ export function ExerciseLogger({ exercises, onSetLogged }: ExerciseLoggerProps) 
               key={muscle}
               type="button"
               onClick={() => setFilterMuscle(muscle)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+              className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
                 filterMuscle === muscle
-                  ? 'bg-foreground text-background'
-                  : 'bg-secondary text-secondary-foreground border border-border'
+                  ? 'pill-active text-primary-foreground'
+                  : 'bg-card text-secondary-foreground border border-border'
               }`}
             >
               {muscle === 'all' ? 'All' : muscle}
@@ -154,9 +158,13 @@ export function ExerciseLogger({ exercises, onSetLogged }: ExerciseLoggerProps) 
           <button
             type="button"
             onClick={() => setShowSearch(!showSearch)}
-            className="px-2.5 py-1.5 rounded-full bg-secondary border border-border text-muted-foreground flex-shrink-0"
+            className={`px-2.5 py-1.5 rounded-full border flex-shrink-0 transition-all ${
+              showSearch
+                ? 'bg-primary/10 border-primary/30 text-primary'
+                : 'bg-card border-border text-muted-foreground'
+            }`}
           >
-            <MagnifyingGlass size={14} />
+            <MagnifyingGlass size={14} weight="bold" />
           </button>
         </div>
       </div>
@@ -165,7 +173,7 @@ export function ExerciseLogger({ exercises, onSetLogged }: ExerciseLoggerProps) 
       <div className="flex-1 overflow-y-auto px-4 pb-4">
         {Object.entries(groupedExercises).map(([muscleGroup, exs]) => (
           <div key={muscleGroup} className="mb-4">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 sticky top-0 bg-background py-1 z-10">
+            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em] mb-2 sticky top-0 bg-background/80 backdrop-blur-sm py-1.5 z-10">
               {muscleGroup}
             </h3>
             <div className="space-y-2">
@@ -178,6 +186,7 @@ export function ExerciseLogger({ exercises, onSetLogged }: ExerciseLoggerProps) 
                   onSetLogged={onSetLogged}
                   isFavorite={favoriteIds.has(exercise.id)}
                   onToggleFavorite={() => toggleFavorite(exercise.id)}
+                  onExerciseUpdated={handleExerciseUpdated}
                 />
               ))}
             </div>
@@ -185,25 +194,27 @@ export function ExerciseLogger({ exercises, onSetLogged }: ExerciseLoggerProps) 
         ))}
 
         {filteredExercises.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
+          <div className="text-center py-16 text-muted-foreground">
             {favoritesOnly && favoriteIds.size === 0 ? (
               <>
-                <Heart size={40} className="mx-auto mb-3 opacity-40" />
-                <p className="text-sm font-medium text-foreground">No favorites yet</p>
+                <div className="w-14 h-14 rounded-2xl bg-secondary flex items-center justify-center mx-auto mb-4">
+                  <Heart size={28} className="opacity-40" />
+                </div>
+                <p className="text-sm font-semibold text-foreground">No favorites yet</p>
                 <p className="text-sm mt-1">Tap the heart on any exercise to add it here.</p>
               </>
             ) : favoritesOnly && favoriteIds.size > 0 ? (
               <>
-                <p className="text-sm font-medium text-foreground">No favorites here</p>
+                <p className="text-sm font-semibold text-foreground">No favorites here</p>
                 <p className="text-sm mt-1">Try another muscle filter or search.</p>
               </>
             ) : (
               <>
-                <p className="text-sm">No exercises found</p>
+                <p className="text-sm font-medium">No exercises found</p>
                 <button
                   type="button"
                   onClick={() => setShowAddModal(true)}
-                  className="mt-2 text-primary text-sm font-medium"
+                  className="mt-2 text-primary text-sm font-bold"
                 >
                   Add a custom exercise
                 </button>
@@ -216,9 +227,10 @@ export function ExerciseLogger({ exercises, onSetLogged }: ExerciseLoggerProps) 
         <button
           type="button"
           onClick={() => setShowAddModal(true)}
-          className="w-full py-3 mt-2 border border-dashed border-border text-muted-foreground text-sm font-medium rounded-xl hover:bg-secondary/50 transition-colors"
+          className="w-full py-3.5 mt-2 border border-dashed border-border text-muted-foreground text-sm font-bold rounded-xl hover:bg-card hover:border-primary/30 hover:text-primary transition-all flex items-center justify-center gap-2"
         >
-          + Add Custom Exercise
+          <Plus size={16} weight="bold" />
+          Add Custom Exercise
         </button>
       </div>
 

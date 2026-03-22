@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { Camera } from '@phosphor-icons/react'
 import { Loader2 } from 'lucide-react'
 import type { MuscleGroup, Exercise } from '@/lib/types'
 import { createExercise } from '@/lib/actions'
+import { resizeImageToThumbnail } from '@/lib/image-utils'
 import { toast } from 'sonner'
 import {
   Sheet,
@@ -19,7 +20,7 @@ interface AddExerciseModalProps {
   onExerciseCreated: (exercise: Exercise) => void
 }
 
-const MUSCLE_GROUPS: MuscleGroup[] = ['Chest', 'Back', 'Legs', 'Arms', 'Shoulders', 'Core']
+const MUSCLE_GROUPS: MuscleGroup[] = ['Chest', 'Back', 'Legs', 'Hips', 'Arms', 'Shoulders', 'Core']
 
 export function AddExerciseModal({ isOpen, onClose, onExerciseCreated }: AddExerciseModalProps) {
   const [name, setName] = useState('')
@@ -52,18 +53,16 @@ export function AddExerciseModal({ isOpen, onClose, onExerciseCreated }: AddExer
 
     setIsSubmitting(true)
     try {
-      let imagePathname: string | null = null
+      let thumbnailDataUrl: string | null = null
       if (imageFile) {
-        const formData = new FormData()
-        formData.append('file', imageFile)
-        const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData })
-        if (uploadRes.ok) {
-          const { pathname } = await uploadRes.json()
-          imagePathname = pathname
+        try {
+          thumbnailDataUrl = await resizeImageToThumbnail(imageFile, 200)
+        } catch {
+          toast.error('Failed to process image')
         }
       }
 
-      const exercise = await createExercise(name.trim(), muscleGroup!, imagePathname, isMachine)
+      const exercise = await createExercise(name.trim(), muscleGroup!, thumbnailDataUrl, isMachine)
       onExerciseCreated(exercise)
       toast.success(`${exercise.name} added`)
 
@@ -84,38 +83,38 @@ export function AddExerciseModal({ isOpen, onClose, onExerciseCreated }: AddExer
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] overflow-y-auto">
+      <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] overflow-y-auto bg-card border-border">
         <SheetHeader>
-          <SheetTitle>New Exercise</SheetTitle>
+          <SheetTitle className="font-bold">New Exercise</SheetTitle>
         </SheetHeader>
 
         <div className="space-y-5 pt-4 pb-6">
           {/* Name */}
           <div>
-            <label className="text-sm font-medium mb-1.5 block">Name</label>
+            <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground mb-2 block">Name</label>
             <input
               type="text"
               value={name}
               onChange={(e) => { setName(e.target.value); setErrors((p) => ({ ...p, name: false })) }}
               placeholder="e.g., Incline Dumbbell Press"
-              className={`w-full px-4 py-3 bg-secondary rounded-lg text-sm border focus:ring-2 focus:ring-primary focus:outline-none ${
+              className={`w-full px-4 py-3 bg-secondary rounded-xl text-sm font-semibold border focus:ring-2 focus:ring-primary/50 focus:outline-none placeholder:text-muted-foreground/50 placeholder:font-medium ${
                 errors.name ? 'border-destructive' : 'border-border'
               }`}
             />
-            {errors.name && <p className="text-xs text-destructive mt-1">Name required</p>}
+            {errors.name && <p className="text-xs text-destructive mt-1.5 font-medium">Name required</p>}
           </div>
 
           {/* Muscle Group */}
           <div>
-            <label className="text-sm font-medium mb-1.5 block">Muscle Group</label>
-            <div className="grid grid-cols-3 gap-2">
+            <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground mb-2 block">Muscle Group</label>
+            <div className="flex flex-wrap gap-1.5">
               {MUSCLE_GROUPS.map((group) => (
                 <button
                   key={group}
                   onClick={() => { setMuscleGroup(group); setErrors((p) => ({ ...p, muscleGroup: false })) }}
-                  className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                  className={`py-2 px-3.5 rounded-xl text-xs font-bold transition-all ${
                     muscleGroup === group
-                      ? 'bg-foreground text-background'
+                      ? 'pill-active text-primary-foreground'
                       : `bg-secondary text-secondary-foreground border ${errors.muscleGroup ? 'border-destructive' : 'border-border'}`
                   }`}
                 >
@@ -127,13 +126,13 @@ export function AddExerciseModal({ isOpen, onClose, onExerciseCreated }: AddExer
 
           {/* Equipment */}
           <div>
-            <label className="text-sm font-medium mb-1.5 block">Equipment</label>
+            <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground mb-2 block">Equipment</label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => setIsMachine(false)}
                 aria-pressed={!isMachine}
-                className={`py-2.5 px-3 rounded-lg text-sm font-medium transition-colors ${
-                  !isMachine ? 'bg-foreground text-background' : 'bg-secondary text-secondary-foreground border border-border'
+                className={`py-3 px-3 rounded-xl text-sm font-bold transition-all ${
+                  !isMachine ? 'pill-active text-primary-foreground' : 'bg-secondary text-secondary-foreground border border-border'
                 }`}
               >
                 Free weight
@@ -141,8 +140,8 @@ export function AddExerciseModal({ isOpen, onClose, onExerciseCreated }: AddExer
               <button
                 onClick={() => setIsMachine(true)}
                 aria-pressed={isMachine}
-                className={`py-2.5 px-3 rounded-lg text-sm font-medium transition-colors ${
-                  isMachine ? 'bg-foreground text-background' : 'bg-secondary text-secondary-foreground border border-border'
+                className={`py-3 px-3 rounded-xl text-sm font-bold transition-all ${
+                  isMachine ? 'pill-active text-primary-foreground' : 'bg-secondary text-secondary-foreground border border-border'
                 }`}
               >
                 Machine
@@ -152,7 +151,9 @@ export function AddExerciseModal({ isOpen, onClose, onExerciseCreated }: AddExer
 
           {/* Photo */}
           <div>
-            <label className="text-sm font-medium mb-1.5 block">Photo <span className="text-muted-foreground font-normal">(optional)</span></label>
+            <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground mb-2 block">
+              Photo <span className="text-muted-foreground/50 normal-case tracking-normal font-medium">(optional)</span>
+            </label>
             <input
               ref={fileInputRef}
               type="file"
@@ -162,11 +163,11 @@ export function AddExerciseModal({ isOpen, onClose, onExerciseCreated }: AddExer
               className="hidden"
             />
             {imagePreview ? (
-              <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-secondary">
+              <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-secondary">
                 <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                 <button
                   onClick={() => { setImagePreview(null); setImageFile(null) }}
-                  className="absolute top-2 right-2 p-1.5 bg-background/80 rounded-full text-xs font-medium"
+                  className="absolute top-2 right-2 px-3 py-1.5 bg-background/80 backdrop-blur-sm rounded-lg text-xs font-bold"
                 >
                   Remove
                 </button>
@@ -174,10 +175,10 @@ export function AddExerciseModal({ isOpen, onClose, onExerciseCreated }: AddExer
             ) : (
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full py-8 rounded-lg border border-dashed border-border flex flex-col items-center gap-1.5 hover:bg-secondary/50 transition-colors"
+                className="w-full py-8 rounded-xl border border-dashed border-border flex flex-col items-center gap-2 hover:bg-secondary/50 hover:border-primary/30 transition-all"
               >
                 <Camera size={24} className="text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Take photo</span>
+                <span className="text-xs font-medium text-muted-foreground">Take photo</span>
               </button>
             )}
           </div>
@@ -186,7 +187,7 @@ export function AddExerciseModal({ isOpen, onClose, onExerciseCreated }: AddExer
           <button
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="w-full py-3.5 bg-foreground text-background font-semibold rounded-lg disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+            className="w-full py-4 bg-primary text-primary-foreground font-bold rounded-xl disabled:opacity-50 flex items-center justify-center gap-2 text-sm transition-all hover:brightness-110 active:scale-[0.98]"
           >
             {isSubmitting ? (
               <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</>

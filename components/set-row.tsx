@@ -29,14 +29,15 @@ export function SetRow({ rep, onDeleted }: SetRowProps) {
 
   return (
     <div
-      className="flex items-center gap-2 px-3 py-2 bg-secondary rounded-lg"
+      className="flex items-center gap-2.5 px-3 py-2.5 bg-secondary rounded-xl cursor-pointer transition-colors hover:bg-secondary/80"
       onClick={() => setShowDelete(!showDelete)}
     >
-      <span className="text-xs font-medium text-muted-foreground w-5">
+      <span className="text-[10px] font-bold text-muted-foreground w-5 text-center">
         {rep.set_number}
       </span>
-      <span className="text-sm font-medium flex-1">
-        {rep.weight_lbs} lbs <span className="text-muted-foreground">x</span> {rep.rep_count}
+      <span className="text-sm font-bold flex-1">
+        {rep.weight_lbs} <span className="text-muted-foreground font-medium text-xs">lbs</span>{' '}
+        <span className="text-muted-foreground font-bold">×</span> {rep.rep_count}
       </span>
       {showDelete && (
         <button
@@ -45,7 +46,7 @@ export function SetRow({ rep, onDeleted }: SetRowProps) {
             handleDelete()
           }}
           disabled={isDeleting}
-          className="p-1 text-destructive hover:text-destructive/80 transition-colors disabled:opacity-50"
+          className="p-1.5 text-destructive hover:text-destructive/80 hover:bg-destructive/10 rounded-lg transition-all disabled:opacity-50"
         >
           <X size={14} weight="bold" />
         </button>
