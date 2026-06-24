@@ -1,0 +1,51 @@
+exercise-tracker-app
+Copyright 2026 arunkk
+
+This product is licensed under the Apache License, Version 2.0.
+See the LICENSE file for the full license text.
+
+---
+
+This product includes the following third-party software:
+
+Next.js (https://nextjs.org)
+  License: MIT — Copyright (c) Vercel, Inc.
+
+React (https://react.dev)
+  License: MIT — Copyright (c) Meta Platforms, Inc. and affiliates.
+
+Supabase JS (https://supabase.com)
+  License: MIT — Copyright (c) Supabase, Inc.
+
+Radix UI Primitives (https://radix-ui.com)
+  License: MIT — Copyright (c) WorkOS
+
+Tailwind CSS (https://tailwindcss.com)
+  License: MIT — Copyright (c) Tailwind Labs, Inc.
+
+shadcn/ui (https://ui.shadcn.com)
+  License: MIT — Copyright (c) shadcn
+
+Recharts (https://recharts.org)
+  License: MIT — Copyright (c) recharts group
+
+date-fns (https://date-fns.org)
+  License: MIT — Copyright (c) date-fns contributors
+
+Zod (https://zod.dev)
+  License: MIT — Copyright (c) Colin McDonnell
+
+React Hook Form (https://react-hook-form.com)
+  License: MIT — Copyright (c) Beier (Bill) Luo
+
+Lucide (https://lucide.dev)
+  License: ISC — Copyright (c) Lucide Contributors
+
+Phosphor Icons (https://phosphoricons.com)
+  License: MIT — Copyright (c) Phosphor Icons
+
+Vercel Blob (https://vercel.com/docs/storage/vercel-blob)
+  License: Apache-2.0 — Copyright (c) Vercel, Inc.
+
+Vercel Analytics (https://vercel.com/analytics)
+  License: Apache-2.0 — Copyright (c) Vercel, Inc.
