@@ -1,12 +1,25 @@
-# exercise-tracker-app
+# RepTrack — Exercise Tracker
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [v0](https://v0.app).
+A mobile-first workout logging PWA built with Next.js, Supabase, and Vercel.
 
-## Built with v0
+## Features
 
-This repository is linked to a [v0](https://v0.app) project. You can continue developing by visiting the link below -- start new chats to make changes, and v0 will push commits directly to this repo. Every merge to `main` will automatically deploy.
+- Log sets, reps, and weight for any exercise
+- Custom exercise creation with optional photo (camera capture)
+- Exercise search/filter by muscle group
+- Favorite exercises for quick access
+- Workout history view
+- Works offline-first; installable as PWA on iOS/Android
 
-[Continue working on v0 →](https://v0.app/chat/projects/prj_qCAdAQUoOmkToPC5Vdd9oZGqbHwj)
+## Tech Stack
+
+| Layer | Choice |
+|-------|--------|
+| Framework | Next.js 16 (App Router) |
+| Database | Supabase (PostgreSQL) |
+| File storage | Vercel Blob |
+| Styling | Tailwind CSS v4 + shadcn/ui |
+| Deployment | Vercel |
 
 ## Getting Started
 
@@ -14,32 +27,23 @@ This repository is linked to a [v0](https://v0.app) project. You can continue de
 
 ```bash
 npm install
+# or
+pnpm install
 ```
 
 ### 2. Set up environment variables
 
-This app requires a [Supabase](https://supabase.com) project. Get your credentials from **Supabase Dashboard → Settings → API**:
+Create `.env.local`:
 
 ```bash
-# .env.local
 NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...
 ```
 
-If your Vercel project already has these configured, you can pull them with:
+Get Supabase credentials from **Supabase Dashboard → Settings → API**.
 
-```bash
-npm i -g vercel
-vercel link
-vercel env pull
-```
-
-Then add the Supabase keys to your Vercel project for future pulls:
-
-```bash
-vercel env add NEXT_PUBLIC_SUPABASE_URL
-vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY
-```
+Get Blob token from **Vercel Dashboard → Storage → Blob**.
 
 ### 3. Run the development server
 
@@ -47,14 +51,29 @@ vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-## Learn More
+## Database Schema
 
-To learn more, take a look at the following resources:
+Three tables in Supabase:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [v0 Documentation](https://v0.app/docs) - learn about v0 and how to use it.
+- **`exercises`** — exercise library (name, muscle group, image URL)
+- **`workout_logs`** — one row per workout session
+- **`reps`** — individual sets within a workout log (exercise, weight, reps)
 
-<a href="https://v0.app/chat/api/kiro/clone/arunkk/exercise-tracker-app" alt="Open in Kiro"><img src="https://pdgvvgmkdvyeydso.public.blob.vercel-storage.com/open%20in%20kiro.svg?sanitize=true" /></a>
+## Project Structure
+
+```
+app/                  # Next.js App Router pages and layouts
+components/           # React components
+  ui/                 # shadcn/ui primitives
+lib/
+  actions.ts          # Server actions (all DB mutations)
+  types.ts            # Shared TypeScript types
+  supabase/           # Supabase client helpers
+public/               # Static assets
+```
+
+## License
+
+Apache 2.0 — see [LICENSE](LICENSE).
